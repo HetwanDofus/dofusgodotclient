@@ -65,7 +65,9 @@ public partial class GameManager : Node2D
         _interactiveDb.Load();
 
         _vello = new VelloRenderer();
-        if (!_vello.InitGpu()) { GD.PrintErr("Failed to init GPU"); return; }
+        Log("[Init] VelloRenderer created, calling InitGpu...");
+        if (!_vello.InitGpu()) { Log("FATAL: InitGpu failed"); return; }
+        Log("[Init] GPU initialized OK");
 
         // Map (empty until server sends MapData)
         _mapRenderer = new MapRenderer { Name = "MapRenderer" };
@@ -129,19 +131,18 @@ public partial class GameManager : Node2D
         _gameClient.OnDisconnected += () => Log("[Net] Disconnected");
         _gameClient.OnAuthSuccess += auth =>
         {
-            GD.Print($"[Net] Auth OK: {auth.Characters.Count} characters");
+            Log($"[Net] Auth OK: {auth.Characters.Count} characters");
             if (auth.Characters.Count > 0) _gameClient.SelectCharacter(auth.Characters[0].Id);
         };
         _gameClient.OnCharacterInfo += info =>
         {
             _myActorId = info.Id;
             _myCellId = info.CellId;
-            GD.Print($"[Net] Character: {info.Name} actor={info.Id} map={info.MapId} cell={info.CellId} look={info.Look}");
-            // MapData arrives right after this (from joinMap), which triggers ChangeMap.
-            // Spawn is deferred — OnMapActors will handle it after map loads.
+            Log($"[Net] Character: {info.Name} actor={info.Id} map={info.MapId} cell={info.CellId} look={info.Look}");
         };
         _gameClient.OnMapActors += actors =>
         {
+            Log($"[Net] MapActors: {actors.Actors.Count} actors, pendingMapData={_pendingMapData is not null}");
             // Flush pending map change so actors spawn on the new map
             if (_pendingMapData is not null)
             {
@@ -177,7 +178,7 @@ public partial class GameManager : Node2D
         };
         _gameClient.OnMapData += mapData =>
         {
-            GD.Print($"[Net] MapData received: map {mapData.MapId}, {mapData.Cells.Count} cells");
+            Log($"[Net] MapData received: map {mapData.MapId}, {mapData.Cells.Count} cells");
             _pendingMapData = mapData;
         };
         _gameClient.Connect();
