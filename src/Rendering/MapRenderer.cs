@@ -112,12 +112,19 @@ public partial class MapRenderer : Node2D
                 ["layerObject2Flip"] = c.Obj2Flip,
             });
         }
-        // Log first few cells to verify data
-        for (int i = 0; i < System.Math.Min(3, _cells.Count); i++)
+        // Log first cell with non-zero ground to verify proto data
+        int nonZero = 0;
+        for (int i = 0; i < _cells.Count; i++)
         {
             var c = _cells[i];
-            GameManager.Log($"[MapRenderer] cell[{i}] id={c["id"]} ground={c["ground"]} layer1={c["layer1"]} layer2={c["layer2"]} movement={c["movement"]}");
+            if (c["ground"].AsInt32() > 0 || c["layer1"].AsInt32() > 0)
+            {
+                if (nonZero == 0)
+                    GameManager.Log($"[MapRenderer] first tile: cell[{i}] id={c["id"]} ground={c["ground"]} layer1={c["layer1"]} layer2={c["layer2"]}");
+                nonZero++;
+            }
         }
+        GameManager.Log($"[MapRenderer] {nonZero}/{_cells.Count} cells have tile data");
         GameManager.Log($"[MapRenderer] Map {mapData.MapId} (proto): {_mapWidth}x{mapData.Height}, {_cells.Count} cells, bg={_bgId}");
     }
 

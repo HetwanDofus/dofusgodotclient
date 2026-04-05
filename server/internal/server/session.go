@@ -163,6 +163,13 @@ func (s *Session) joinMap(ctx context.Context, mapID, cellID int32, direction in
 		log.Printf("[Session] Failed to get map data %d: %v", mapID, err)
 		return
 	}
+	// Debug: log first non-zero cell
+	for _, c := range mapData.Cells {
+		if c.Ground > 0 {
+			log.Printf("[Session] Map %d first tile: cell %d ground=%d layer1=%d", mapID, c.Id, c.Ground, c.Layer1)
+			break
+		}
+	}
 	s.send(&pb.GameMessage{
 		Msg: &pb.GameMessage_MapData{MapData: mapData},
 	})
