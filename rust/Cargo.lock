@@ -568,6 +568,7 @@ dependencies = [
 name = "dofus-vello-godot"
 version = "0.1.0"
 dependencies = [
+ "ash",
  "dofasset-renderer",
  "godot",
  "metal",
