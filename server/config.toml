@@ -1,0 +1,9 @@
+[server]
+addr = "0.0.0.0:8080"
+
+[database]
+host = "localhost"
+port = "5432"
+user = "dofus"
+password = "dofus"
+name = "dofus"

@@ -3,4 +3,4 @@
 /android/
 
 # Rust build artifacts
-rust/target/
+**/target/

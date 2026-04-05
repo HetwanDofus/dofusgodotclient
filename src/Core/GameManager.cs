@@ -54,6 +54,7 @@ public partial class GameManager : Node2D
 
     public override void _Ready()
     {
+        LoadClientConfig();
         _spritesPath = ProjectSettings.GlobalizePath("res://assets/sprites/");
         _tileResolution = ComputeResolution();
         GD.Print($"[GameManager] tile_resolution: {_tileResolution:F2}");
@@ -427,6 +428,31 @@ public partial class GameManager : Node2D
     }
 
     // ===================== HELPERS =====================
+
+    private void LoadClientConfig()
+    {
+        // Try user:// first (next to exe on export), then res:// (editor)
+        string? path = null;
+        foreach (var dir in new[] { "user://", "res://" })
+        {
+            var p = dir + "client.cfg";
+            if (FileAccess.FileExists(p)) { path = p; break; }
+        }
+        if (path is null)
+        {
+            GD.Print("[Config] No client.cfg found, using defaults");
+            return;
+        }
+
+        var cfg = new ConfigFile();
+        if (cfg.Load(path) != Error.Ok) { GD.PrintErr($"[Config] Failed to load {path}"); return; }
+
+        ServerUrl = (string)cfg.GetValue("server", "url", ServerUrl);
+        Username = (string)cfg.GetValue("server", "username", Username);
+        ConnectToServer = (bool)cfg.GetValue("client", "connect", ConnectToServer);
+
+        GD.Print($"[Config] Loaded {path}: server={ServerUrl} user={Username} connect={ConnectToServer}");
+    }
 
     private void RegisterInteractiveTiles()
     {

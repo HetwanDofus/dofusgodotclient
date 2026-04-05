@@ -1,0 +1,75 @@
+name: Build Windows Client
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  GODOT_VERSION: "4.6.2"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Rust GDExtension DLL ──
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build Rust DLL (release)
+        working-directory: rust
+        run: cargo build --release
+
+      # ── Godot + .NET ──
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Download Godot
+        shell: pwsh
+        run: |
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_mono_win64.zip"
+          Invoke-WebRequest -Uri $url -OutFile godot.zip
+          Expand-Archive godot.zip -DestinationPath godot_install
+          $godotDir = Get-ChildItem godot_install -Directory | Select-Object -First 1
+          echo "GODOT=$($godotDir.FullName)\Godot_v${{ env.GODOT_VERSION }}-stable_mono_win64.exe" >> $env:GITHUB_ENV
+
+      - name: Download export templates
+        shell: pwsh
+        run: |
+          $url = "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-stable/Godot_v${{ env.GODOT_VERSION }}-stable_mono_export_templates.tpz"
+          Invoke-WebRequest -Uri $url -OutFile templates.tpz
+          $dest = "$env:APPDATA\Godot\export_templates\${{ env.GODOT_VERSION }}.stable.mono"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Expand-Archive templates.tpz -DestinationPath templates_tmp
+          Copy-Item templates_tmp\templates\* $dest -Recurse -Force
+
+      - name: Build C# project
+        shell: pwsh
+        run: |
+          & $env:GODOT --headless --build-solutions --quit 2>&1 | Out-Default
+          dotnet build -c Release
+
+      - name: Export Windows
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build\windows | Out-Null
+          & $env:GODOT --headless --export-release "Windows Desktop" build\windows\DofusRetroFuture.exe 2>&1 | Out-Default
+
+      - name: Copy client.cfg
+        shell: pwsh
+        run: Copy-Item client.cfg build\windows\client.cfg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DofusRetroFuture-Windows
+          path: build/windows/

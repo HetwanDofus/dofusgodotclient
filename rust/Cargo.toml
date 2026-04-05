@@ -8,10 +8,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
-dofasset-renderer = { path = "../../dofus-vello-custom-format/packages/renderer" }
+dofasset-renderer = { path = "dofasset-renderer" }
 vello = "0.8"
-wgpu = { version = "28", features = ["metal", "vulkan"] }
-wgpu-hal = "28"
+wgpu = { version = "28", features = ["metal", "vulkan", "dx12"] }
+wgpu-hal = { version = "28", features = ["dx12"] }
 pollster = "0.4"
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
