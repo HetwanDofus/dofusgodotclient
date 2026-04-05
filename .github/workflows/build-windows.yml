@@ -27,6 +27,18 @@ jobs:
         working-directory: rust
         run: cargo build --release
 
+      - name: Verify DLL exists
+        shell: pwsh
+        run: |
+          $dll = "rust\target\release\dofus_vello_godot.dll"
+          if (Test-Path $dll) {
+            Write-Host "DLL found: $dll ($(((Get-Item $dll).Length / 1MB).ToString('F1')) MB)"
+          } else {
+            Write-Host "DLL NOT FOUND at $dll"
+            Get-ChildItem rust\target\release\*.dll -ErrorAction SilentlyContinue
+            exit 1
+          }
+
       # ── Godot + .NET ──
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
