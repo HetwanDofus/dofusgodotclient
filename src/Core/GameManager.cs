@@ -51,9 +51,11 @@ public partial class GameManager : Node2D
     // Debug
     private bool _debugTileMode;
     private Label? _debugLabel;
+    private static FileAccess? _logFile;
 
     public override void _Ready()
     {
+        InitLog();
         LoadClientConfig();
         _spritesPath = ProjectSettings.GlobalizePath("res://assets/sprites/");
         _tileResolution = ComputeResolution();
@@ -112,7 +114,9 @@ public partial class GameManager : Node2D
         GetTree().Root.SizeChanged += () => _resizeTimer.Start(0.3);
 
         // Server
+        Log($"connect={ConnectToServer} url={ServerUrl} user={Username}");
         if (ConnectToServer) InitServerConnection();
+        else Log("ConnectToServer=false — no server connection");
     }
 
     // ===================== SERVER CONNECTION =====================
@@ -120,8 +124,8 @@ public partial class GameManager : Node2D
     private void InitServerConnection()
     {
         _gameClient = new GameClient(ServerUrl);
-        _gameClient.OnConnected += () => { GD.Print("[Net] Connected"); _gameClient.Login(Username); };
-        _gameClient.OnDisconnected += () => GD.Print("[Net] Disconnected");
+        _gameClient.OnConnected += () => { Log("[Net] Connected"); _gameClient.Login(Username); };
+        _gameClient.OnDisconnected += () => Log("[Net] Disconnected");
         _gameClient.OnAuthSuccess += auth =>
         {
             GD.Print($"[Net] Auth OK: {auth.Characters.Count} characters");
@@ -429,30 +433,55 @@ public partial class GameManager : Node2D
 
     // ===================== HELPERS =====================
 
+    private static void InitLog()
+    {
+        var logPath = OS.GetExecutablePath().GetBaseDir() + "/game.log";
+        _logFile = FileAccess.Open(logPath, FileAccess.ModeFlags.Write);
+        if (_logFile is null)
+        {
+            // Fallback to user://
+            _logFile = FileAccess.Open("user://game.log", FileAccess.ModeFlags.Write);
+        }
+        Log("=== Game started ===");
+        Log($"exe={OS.GetExecutablePath()}");
+    }
+
+    private static void Log(string msg)
+    {
+        var line = $"[{Time.GetTicksMsec():D8}] {msg}";
+        GD.Print(line);
+        _logFile?.StoreLine(line);
+        _logFile?.Flush();
+    }
+
     private void LoadClientConfig()
     {
-        // Try: next to exe (export), user://, res:// (editor)
-        string? path = null;
         var exeDir = OS.GetExecutablePath().GetBaseDir();
         var candidates = new[] { exeDir + "/client.cfg", "user://client.cfg", "res://client.cfg" };
+        Log($"Looking for client.cfg in: {string.Join(", ", candidates)}");
+
+        string? path = null;
         foreach (var p in candidates)
         {
-            if (FileAccess.FileExists(p)) { path = p; break; }
+            bool exists = FileAccess.FileExists(p);
+            Log($"  {p} → {(exists ? "FOUND" : "not found")}");
+            if (exists && path is null) path = p;
         }
+
         if (path is null)
         {
-            GD.Print("[Config] No client.cfg found, using defaults");
+            Log("No client.cfg found, using defaults");
             return;
         }
 
         var cfg = new ConfigFile();
-        if (cfg.Load(path) != Error.Ok) { GD.PrintErr($"[Config] Failed to load {path}"); return; }
+        if (cfg.Load(path) != Error.Ok) { Log($"Failed to load {path}"); return; }
 
         ServerUrl = (string)cfg.GetValue("server", "url", ServerUrl);
         Username = (string)cfg.GetValue("server", "username", Username);
         ConnectToServer = (bool)cfg.GetValue("client", "connect", ConnectToServer);
 
-        GD.Print($"[Config] Loaded {path}: server={ServerUrl} user={Username} connect={ConnectToServer}");
+        Log($"Config loaded from {path}: server={ServerUrl} user={Username} connect={ConnectToServer}");
     }
 
     private void RegisterInteractiveTiles()
