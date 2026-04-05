@@ -57,7 +57,7 @@ public partial class GameManager : Node2D
     {
         InitLog();
         LoadClientConfig();
-        _spritesPath = ProjectSettings.GlobalizePath("res://assets/sprites/");
+        _spritesPath = "res://assets/sprites/";
         _tileResolution = ComputeResolution();
         GD.Print($"[GameManager] tile_resolution: {_tileResolution:F2}");
 

@@ -84,7 +84,7 @@ public class VelloRenderer
 
         uint aid = _nextAssetId++;
         _tileAssetIds[path] = aid;
-        _renderer.Call("load_asset", aid, path);
+        LoadAssetViaGodot(aid, path);
         return aid;
     }
 
@@ -99,7 +99,7 @@ public class VelloRenderer
         uint aid = _nextAssetId++;
         _gfxToAssetId[gfxId] = aid;
         var path = $"{spritesPath}{gfxId}.dofasset";
-        _renderer.Call("load_asset", aid, path);
+        LoadAssetViaGodot(aid, path);
         return aid;
     }
 
@@ -117,8 +117,24 @@ public class VelloRenderer
 
         uint aid = _nextAssetId++;
         _accToAssetId[accKey] = aid;
-        _renderer.Call("load_asset", aid, path);
+        LoadAssetViaGodot(aid, path);
         return aid;
+    }
+
+    /// <summary>
+    /// Read file through Godot's FileAccess (works with PCK) and pass bytes to Rust.
+    /// </summary>
+    private void LoadAssetViaGodot(uint id, string path)
+    {
+        var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+        if (file is null)
+        {
+            GD.PrintErr($"[VelloRenderer] Cannot open {path}");
+            return;
+        }
+        var bytes = file.GetBuffer((long)file.GetLength());
+        file.Close();
+        _renderer.Call("load_asset_from_bytes", id, bytes);
     }
 
     public uint? GetSpriteAssetId(int gfxId)

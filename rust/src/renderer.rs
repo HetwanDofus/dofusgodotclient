@@ -43,8 +43,13 @@ impl IObject for DofusRenderer {
 impl DofusRenderer {
     #[func]
     fn init_gpu(&mut self) -> bool {
+        let backends = if cfg!(target_os = "windows") {
+            wgpu::Backends::DX12 | wgpu::Backends::VULKAN
+        } else {
+            wgpu::Backends::all()
+        };
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
+            backends,
             ..Default::default()
         });
 
@@ -120,6 +125,18 @@ impl DofusRenderer {
         }
 
         let asset = dofasset_renderer::format::load(&data);
+        self.assets.insert(id, asset);
+        true
+    }
+
+    #[func]
+    fn load_asset_from_bytes(&mut self, id: u32, data: PackedByteArray) -> bool {
+        let bytes = data.as_slice();
+        if bytes.len() < 4 || &bytes[0..4] != b"DASF" {
+            godot_error!("[DofusRenderer] Invalid DASF header for asset {id}");
+            return false;
+        }
+        let asset = dofasset_renderer::format::load(bytes);
         self.assets.insert(id, asset);
         true
     }

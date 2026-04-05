@@ -123,8 +123,8 @@ public partial class MapRenderer : Node2D
 
     public void RenderMap()
     {
-        var groundTilesPath = ProjectSettings.GlobalizePath("res://assets/tiles/ground/");
-        var objectTilesPath = ProjectSettings.GlobalizePath("res://assets/tiles/objects/");
+        var groundTilesPath = "res://assets/tiles/ground/";
+        var objectTilesPath = "res://assets/tiles/objects/";
         GameManager.Log($"[MapRenderer] RenderMap groundPath={groundTilesPath} objectPath={objectTilesPath}");
         GameManager.Log($"[MapRenderer] groundPath exists={DirAccess.DirExistsAbsolute(groundTilesPath)} objectPath exists={DirAccess.DirExistsAbsolute(objectTilesPath)}");
 
@@ -334,18 +334,7 @@ public partial class MapRenderer : Node2D
         var parts = key.Split('_', 2);
         string basePath = parts[0] == "ground" ? groundPath : objectPath;
         string path = $"{basePath}{parts[1]}.dofasset";
-        bool existsGodot = FileAccess.FileExists(path);
-        bool existsFs = System.IO.File.Exists(path);
-        if (!existsGodot && !existsFs)
-        {
-            GameManager.Log($"[MapRenderer] MISSING tile: {path} (godot={existsGodot} fs={existsFs})");
-            return;
-        }
-        if (!existsFs)
-        {
-            GameManager.Log($"[MapRenderer] Tile in PCK but not on disk: {path} — Rust can't read it");
-            return;
-        }
+        if (!FileAccess.FileExists(path)) return;
 
         uint aid = _vello.LoadTileAsset(path);
 
