@@ -64,17 +64,23 @@ jobs:
           Expand-Archive templates.tpz -DestinationPath templates_tmp
           Copy-Item templates_tmp\templates\* $dest -Recurse -Force
 
-      - name: Build C# project
+      - name: Import project + build C#
         shell: pwsh
         run: |
+          & $env:GODOT --headless --import --quit 2>&1 | Out-Default
           & $env:GODOT --headless --build-solutions --quit 2>&1 | Out-Default
-          dotnet build -c Release
 
       - name: Export Windows
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build\windows | Out-Null
           & $env:GODOT --headless --export-release "Windows Desktop" build\windows\DofusRetroFuture.exe 2>&1 | Out-Default
+
+      - name: Verify export output
+        shell: pwsh
+        run: |
+          Write-Host "=== Export output ==="
+          Get-ChildItem build\windows\ -Recurse | ForEach-Object { Write-Host "$($_.FullName) ($([math]::Round($_.Length/1KB)) KB)" }
 
       - name: Copy client.cfg
         shell: pwsh

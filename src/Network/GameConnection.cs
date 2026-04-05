@@ -29,7 +29,9 @@ public class GameConnection
     public Error Connect()
     {
         GD.Print($"[GameConnection] Connecting to {_url}");
-        return _ws.ConnectToUrl(_url);
+        var err = _ws.ConnectToUrl(_url);
+        GD.Print($"[GameConnection] ConnectToUrl result: {err}");
+        return err;
     }
 
     public void Poll()
@@ -63,12 +65,21 @@ public class GameConnection
                 }
                 break;
 
+            case WebSocketPeer.State.Closing:
+                break;
+
             case WebSocketPeer.State.Closed:
+                var code = _ws.GetCloseCode();
+                var reason = _ws.GetCloseReason();
                 if (_connected)
                 {
                     _connected = false;
-                    GD.Print("[GameConnection] Disconnected");
+                    GD.Print($"[GameConnection] Disconnected code={code} reason={reason}");
                     Disconnected?.Invoke();
+                }
+                else if (code != -1)
+                {
+                    GD.Print($"[GameConnection] Connection failed code={code} reason={reason}");
                 }
                 break;
         }

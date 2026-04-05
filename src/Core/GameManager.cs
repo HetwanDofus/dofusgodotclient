@@ -123,8 +123,9 @@ public partial class GameManager : Node2D
 
     private void InitServerConnection()
     {
+        Log($"[Net] InitServerConnection url={ServerUrl}");
         _gameClient = new GameClient(ServerUrl);
-        _gameClient.OnConnected += () => { Log("[Net] Connected"); _gameClient.Login(Username); };
+        _gameClient.OnConnected += () => { Log("[Net] Connected, logging in as " + Username); _gameClient.Login(Username); };
         _gameClient.OnDisconnected += () => Log("[Net] Disconnected");
         _gameClient.OnAuthSuccess += auth =>
         {
@@ -457,7 +458,8 @@ public partial class GameManager : Node2D
     private void LoadClientConfig()
     {
         var exeDir = OS.GetExecutablePath().GetBaseDir();
-        var candidates = new[] { exeDir + "/client.cfg", "user://client.cfg", "res://client.cfg" };
+        var exePath = exeDir.PathJoin("client.cfg");
+        var candidates = new[] { exePath, "user://client.cfg", "res://client.cfg" };
         Log($"Looking for client.cfg in: {string.Join(", ", candidates)}");
 
         string? path = null;
