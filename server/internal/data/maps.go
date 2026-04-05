@@ -85,7 +85,7 @@ func (s *MapStore) loadFromDB(ctx context.Context, mapID int32) (*pb.MapData, er
 	}
 	s.mu.Unlock()
 
-	log.Printf("[MapStore] Loaded map %d (%dx%d, %d cells)", mapID, row.Width, row.Height, len(cells))
+	log.Printf("[MapStore] Loaded map %d (%dx%d, %d cells, %d triggers)", mapID, row.Width, row.Height, len(cells), len(triggers))
 	return mapData, nil
 }
 

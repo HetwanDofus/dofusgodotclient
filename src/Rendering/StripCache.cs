@@ -70,7 +70,7 @@ public class StripCache
         float fh = strip.ContainsKey("frameHeight") ? strip["frameHeight"].AsInt32() : 1;
         float anchorX = strip.ContainsKey("anchorX") ? (float)strip["anchorX"].AsDouble() : 0;
         float anchorY = strip.ContainsKey("anchorY") ? (float)strip["anchorY"].AsDouble() : 0;
-        int fps = Constants.GetAnimFps(animName);
+        int fps = strip.ContainsKey("fps") ? strip["fps"].AsInt32() : Constants.GetAnimFps(animName);
 
         var baseTexture = strip["texture"].As<Texture2D>();
         var frames = new AtlasTexture[frameCount];

@@ -39,6 +39,14 @@ public partial class GameManager : Node2D
     private int _myCellId = -1;
     private readonly System.Collections.Generic.Dictionary<int, ServerActorData> _serverActors = new();
     private record ServerActorData(Actor Actor, int GfxId, int[] Colors, int[] AccInfo);
+    private Proto.MapData? _pendingMapData;
+
+    // Map transition (fade to black and back)
+    private ColorRect? _fadeRect;
+    private CanvasLayer? _fadeLayer;
+    private float _fadePhase = -1f; // <0 = inactive, 0..1 = fade out (black), 1..2 = fade in (reveal)
+    private const float FadeOutDuration = 0.12f;
+    private const float FadeInDuration = 0.2f;
 
     // Debug
     private bool _debugTileMode;
@@ -56,28 +64,21 @@ public partial class GameManager : Node2D
         _vello = new VelloRenderer();
         if (!_vello.InitGpu()) { GD.PrintErr("Failed to init GPU"); return; }
 
-        // Map
+        // Map (empty until server sends MapData)
         _mapRenderer = new MapRenderer { Name = "MapRenderer" };
         AddChild(_mapRenderer);
         _mapRenderer.Init(_vello, _interactiveDb, _tileResolution);
-        _mapRenderer.LoadMap(MapId);
-        _mapRenderer.RenderMap();
 
         // Grid overlay (Flash depth 400)
         _gridOverlay = new GridOverlay { Name = "GridOverlay" };
         _mapRenderer.AddChild(_gridOverlay);
-        _gridOverlay.SetMapData(_mapRenderer.Cells, _mapRenderer.MapWidth);
 
         // Interaction
         _interactionHandler = new InteractionHandler { Name = "InteractionHandler" };
         AddChild(_interactionHandler);
-        _interactionHandler.SetMapData(_mapRenderer.Cells, _mapRenderer.MapWidth);
-        RegisterInteractiveTiles();
 
-        // Pathfinding + strip cache (always needed)
-        var walkableCells = GetWalkableCells();
-        int mapHeight = _mapRenderer.Cells.Count > 0 ? (_mapRenderer.Cells.Count / _mapRenderer.MapWidth + 1) : 17;
-        _pathfinding = new DofusPathfinding(_mapRenderer.MapWidth, mapHeight, walkableCells);
+        // Pathfinding + strip cache
+        _pathfinding = new DofusPathfinding(15, 17, []);
         _stripCache = new StripCache(_vello, _tileResolution);
         _interactionHandler.Picking.SetStripCache(_stripCache);
 
@@ -102,19 +103,6 @@ public partial class GameManager : Node2D
 
         // Camera
         AddChild(new Camera2D { Name = "Camera2D", Position = new Vector2(DisplayWidth / 2f, DisplayHeight / 2f) });
-
-        // Stress test
-        if (EnableStressTest)
-        {
-            var actorLayer = _mapRenderer.InterleaveLayer;
-            _actorManager = new ActorManager(actorLayer, _vello, _stripCache,
-                _interactionHandler.Picking, _tileResolution,
-                _mapRenderer.MapWidth, _mapRenderer.Cells, walkableCells, _spritesPath);
-            _actorManager.SetPathfinding(_pathfinding);
-            ulong t1 = Time.GetTicksMsec();
-            _actorManager.SpawnActors(ActorCount);
-            GD.Print($"[GameManager] Spawned {_actorManager.Count} actors in {Time.GetTicksMsec() - t1} ms");
-        }
 
         // Resize
         _resizeTimer = new Timer { OneShot = true, WaitTime = 0.3 };
@@ -143,20 +131,29 @@ public partial class GameManager : Node2D
             _myActorId = info.Id;
             _myCellId = info.CellId;
             GD.Print($"[Net] Character: {info.Name} actor={info.Id} map={info.MapId} cell={info.CellId} look={info.Look}");
-            SpawnServerPlayer(info.Id, info.Name, (int)info.Gfx, info.Look, info.CellId, (int)info.Direction);
+            // MapData arrives right after this (from joinMap), which triggers ChangeMap.
+            // Spawn is deferred — OnMapActors will handle it after map loads.
         };
         _gameClient.OnMapActors += actors =>
         {
+            // Flush pending map change so actors spawn on the new map
+            if (_pendingMapData is not null)
+            {
+                var mapData = _pendingMapData;
+                _pendingMapData = null;
+                ChangeMap(mapData);
+            }
             foreach (var a in actors.Actors)
             {
-                if (a.Id == _myActorId || _serverActors.ContainsKey(a.Id)) continue;
+                if (_serverActors.ContainsKey(a.Id)) continue;
                 var (gfx, colors) = ParseLook(a.Look);
                 SpawnServerPlayer(a.Id, a.Name, gfx, a.Look, a.CellId, (int)a.Direction);
+                if (a.Id == _myActorId) _myCellId = a.CellId;
             }
         };
         _gameClient.OnActorAdd += a =>
         {
-            if (a.Id == _myActorId || _serverActors.ContainsKey(a.Id)) return;
+            if (_serverActors.ContainsKey(a.Id)) return;
             var (gfx, _) = ParseLook(a.Look);
             SpawnServerPlayer(a.Id, a.Name, gfx, a.Look, a.CellId, (int)a.Direction);
         };
@@ -171,6 +168,11 @@ public partial class GameManager : Node2D
             for (int i = 0; i < m.Path.Count; i++) path[i] = m.Path[i];
             d.Actor.MovePath(path, GetCellWorldPos);
             SwitchServerActorAnim(m.Id, path.Length > 6 ? "run" : "walk");
+        };
+        _gameClient.OnMapData += mapData =>
+        {
+            GD.Print($"[Net] MapData received: map {mapData.MapId}, {mapData.Cells.Count} cells");
+            _pendingMapData = mapData;
         };
         _gameClient.Connect();
     }
@@ -242,6 +244,7 @@ public partial class GameManager : Node2D
     public override void _Process(double delta)
     {
         float dt = (float)delta;
+        TickTransition(dt);
         _gameClient?.Poll();
         _actorManager?.Tick(dt);
 
@@ -260,7 +263,12 @@ public partial class GameManager : Node2D
             {
                 GD.Print($"[Move] actor {kv.Key} path complete at cell {d.Actor.CellId}");
                 SwitchServerActorAnim(kv.Key, "static");
-                if (kv.Key == _myActorId) _myCellId = d.Actor.CellId;
+                if (kv.Key == _myActorId)
+                {
+                    _myCellId = d.Actor.CellId;
+                    _gameClient?.SendMoveEnd();
+                    break; // MoveEnd may trigger map change on next Poll
+                }
             }
         }
 
@@ -287,6 +295,14 @@ public partial class GameManager : Node2D
         }
         else if (_debugLabel is not null) _debugLabel.Visible = false;
 
+        // Deferred map change (safe — outside actor iteration)
+        if (_pendingMapData is not null)
+        {
+            var mapData = _pendingMapData;
+            _pendingMapData = null;
+            ChangeMap(mapData);
+        }
+
         _fpsTimer += dt;
         _frameCounter++;
         if (_fpsTimer >= 1f)
@@ -300,6 +316,82 @@ public partial class GameManager : Node2D
 
     private void OnZaapClicked(int cellId, Vector2 screenPos) => _zaapPopup?.ShowAt(screenPos, cellId);
     private void OnZaapUse(int cellId) => GD.Print($"[Zaap] Use at cell {cellId}");
+
+    private void ChangeMap(Proto.MapData mapData)
+    {
+        GD.Print($"[MapChange] {MapId} → {mapData.MapId}");
+
+        // Fade transition
+        StartFadeTransition();
+
+        // Clear server actors
+        foreach (var kv in _serverActors)
+            kv.Value.Actor.Sprite.QueueFree();
+        _serverActors.Clear();
+
+        // Clear picking
+        _interactionHandler.Picking.Clear();
+
+        // Load from server proto data + render
+        MapId = mapData.MapId;
+        _mapRenderer.LoadMapFromProto(mapData);
+        _mapRenderer.RenderMap();
+
+        // Rebuild pathfinding
+        var walkableCells = GetWalkableCells();
+        int mapHeight = _mapRenderer.Cells.Count > 0 ? (_mapRenderer.Cells.Count / _mapRenderer.MapWidth + 1) : 17;
+        _pathfinding = new DofusPathfinding(_mapRenderer.MapWidth, mapHeight, walkableCells);
+
+        // Update grid overlay
+        _gridOverlay?.SetMapData(_mapRenderer.Cells, _mapRenderer.MapWidth);
+
+        // Update interaction handler
+        _interactionHandler.SetMapData(_mapRenderer.Cells, _mapRenderer.MapWidth);
+        RegisterInteractiveTiles();
+
+        GD.Print($"[MapChange] Loaded map {mapData.MapId}: {_mapRenderer.Cells.Count} cells, {walkableCells.Length} walkable");
+    }
+
+    private void EnsureFadeLayer()
+    {
+        if (_fadeLayer is not null) return;
+        _fadeLayer = new CanvasLayer { Layer = 100, Name = "FadeLayer" };
+        AddChild(_fadeLayer);
+        _fadeRect = new ColorRect
+        {
+            Color = new Color(0f, 0f, 0f, 0f),
+            AnchorRight = 1f,
+            AnchorBottom = 1f,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        _fadeLayer.AddChild(_fadeRect);
+    }
+
+    private void StartFadeTransition()
+    {
+        if (_mapRenderer.Cells.Count == 0) return;
+        EnsureFadeLayer();
+        _fadePhase = 1f; // skip fade-out, go straight to full black then fade in
+        _fadeRect!.Color = new Color(0f, 0f, 0f, 1f);
+    }
+
+    private void TickTransition(float dt)
+    {
+        if (_fadePhase < 0f || _fadeRect is null) return;
+
+        _fadePhase += dt / FadeInDuration;
+        float alpha = Mathf.Clamp(1f - (_fadePhase - 1f), 0f, 1f);
+
+        if (_fadePhase >= 2f)
+        {
+            _fadeRect.Color = new Color(0f, 0f, 0f, 0f);
+            _fadePhase = -1f;
+        }
+        else
+        {
+            _fadeRect.Color = new Color(0f, 0f, 0f, alpha);
+        }
+    }
 
     private void OnCellClicked(int cellId)
     {
@@ -347,8 +439,7 @@ public partial class GameManager : Node2D
     {
         int gl = cellId < _mapRenderer.Cells.Count && _mapRenderer.Cells[cellId].ContainsKey("groundLevel")
             ? _mapRenderer.Cells[cellId]["groundLevel"].AsInt32() : 7;
-        var pos = CellGrid.GetCellPosition(cellId, _mapRenderer.MapWidth, gl);
-        return pos + new Vector2(CellHalfWidth, CellHalfHeight);
+        return CellGrid.GetCellPosition(cellId, _mapRenderer.MapWidth, gl);
     }
 
     private int[] ParseAccessories(string look)

@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -11,6 +13,11 @@ import (
 	"dofus-server/internal/game"
 	pb "dofus-server/internal/proto"
 )
+
+type pendingTransition struct {
+	targetMapID  int32
+	targetCellID int32
+}
 
 type Session struct {
 	conn      *websocket.Conn
@@ -25,6 +32,7 @@ type Session struct {
 	name      string
 	look      string
 	instance  *game.MapInstance
+	pending   *pendingTransition
 	mu        sync.Mutex
 }
 
@@ -187,7 +195,34 @@ func (s *Session) handleCharacterMove(ctx context.Context, msg *pb.CharacterMove
 		return
 	}
 
-	finalCell := msg.Path[len(msg.Path)-1]
+	path := msg.Path
+	s.pending = nil
+
+	// Check for trigger cells along the path
+	triggers := s.world.MapStore.GetTriggers(s.mapID)
+	log.Printf("[Session] %s move on map %d, path len=%d, triggers=%d", s.name, s.mapID, len(path), len(triggers))
+	if len(triggers) > 0 {
+		triggerMap := make(map[int32]*pendingTransition, len(triggers))
+		for _, t := range triggers {
+			if t.ActionID == 0 && t.EventID == 1 && t.ActionArgs.Valid {
+				if target, ok := parseTriggerArgs(t.ActionArgs.String); ok {
+					triggerMap[t.CellID] = target
+				}
+			}
+		}
+
+		for i := 1; i < len(path); i++ {
+			if trigger, ok := triggerMap[path[i]]; ok {
+				path = path[:i+1] // Truncate at trigger cell
+				s.pending = trigger
+				log.Printf("[Session] %s path truncated at trigger cell %d → map %d cell %d",
+					s.name, path[i], trigger.targetMapID, trigger.targetCellID)
+				break
+			}
+		}
+	}
+
+	finalCell := path[len(path)-1]
 	s.cellID = finalCell
 
 	// Update actor on map
@@ -204,7 +239,7 @@ func (s *Session) handleCharacterMove(ctx context.Context, msg *pb.CharacterMove
 	s.srv.BroadcastToMap(s.mapID, -1, &pb.GameMessage{
 		Msg: &pb.GameMessage_ActorMove{ActorMove: &pb.ActorMove{
 			Id:   s.actorID,
-			Path: msg.Path,
+			Path: path,
 		}},
 	})
 }
@@ -213,6 +248,17 @@ func (s *Session) handleCharacterMoveEnd(ctx context.Context) {
 	// Persist final position
 	if err := s.world.UpdateCharacterPosition(ctx, s.charID, s.mapID, s.cellID, s.direction); err != nil {
 		log.Printf("[Session] Failed to update position on move end: %v", err)
+	}
+
+	// Fire pending trigger transition
+	if s.pending != nil {
+		p := s.pending
+		s.pending = nil
+		log.Printf("[Session] %s trigger transition → map %d cell %d", s.name, p.targetMapID, p.targetCellID)
+		s.handleMapChange(ctx, &pb.MapChangeRequest{
+			TargetMapId:  p.targetMapID,
+			TargetCellId: p.targetCellID,
+		})
 	}
 }
 
@@ -245,6 +291,20 @@ func (s *Session) handleMapChange(ctx context.Context, msg *pb.MapChangeRequest)
 
 	// Join new map
 	s.joinMap(ctx, newMapID, msg.TargetCellId, 2)
+}
+
+// parseTriggerArgs parses "targetMapId,targetCellId" from action_args
+func parseTriggerArgs(args string) (*pendingTransition, bool) {
+	parts := strings.SplitN(args, ",", 2)
+	if len(parts) != 2 {
+		return nil, false
+	}
+	mapID, err1 := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 32)
+	cellID, err2 := strconv.ParseInt(strings.TrimSpace(parts[1]), 10, 32)
+	if err1 != nil || err2 != nil {
+		return nil, false
+	}
+	return &pendingTransition{targetMapID: int32(mapID), targetCellID: int32(cellID)}, true
 }
 
 func (s *Session) send(msg *pb.GameMessage) {

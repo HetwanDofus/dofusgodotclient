@@ -2,6 +2,7 @@ using Godot;
 using Godot.Collections;
 using DofusRetroFuture.Core;
 using DofusRetroFuture.Interaction;
+using DofusRetroFuture.Proto;
 using static DofusRetroFuture.Core.Constants;
 
 namespace DofusRetroFuture.Rendering;
@@ -82,6 +83,36 @@ public partial class MapRenderer : Node2D
         _bgId = data.ContainsKey("background") ? data["background"].AsInt32() : 0;
 
         GD.Print($"[MapRenderer] Map {mapId}: {_mapWidth}x{data["height"].AsInt32()}, {_cells.Count} cells, bg={_bgId}");
+    }
+
+    public void LoadMapFromProto(MapData mapData)
+    {
+        _mapWidth = mapData.Width;
+        _bgId = mapData.Background;
+        _cells = new Array<Dictionary>();
+        foreach (var c in mapData.Cells)
+        {
+            _cells.Add(new Dictionary
+            {
+                ["id"] = c.Id,
+                ["active"] = c.Active,
+                ["ground"] = c.Ground,
+                ["layer1"] = c.Layer1,
+                ["layer2"] = c.Layer2,
+                ["groundLevel"] = c.GroundLevel,
+                ["walkable"] = c.Walkable,
+                ["movement"] = c.Movement,
+                ["lineOfSight"] = c.LineOfSight,
+                ["groundSlope"] = c.GroundSlope,
+                ["layerGroundRot"] = c.GroundRot,
+                ["layerGroundFlip"] = c.GroundFlip,
+                ["layerObject1Rot"] = c.Obj1Rot,
+                ["layerObject1Flip"] = c.Obj1Flip,
+                ["layerObject2Rot"] = c.Obj2Rot,
+                ["layerObject2Flip"] = c.Obj2Flip,
+            });
+        }
+        GD.Print($"[MapRenderer] Map {mapData.MapId} (proto): {_mapWidth}x{mapData.Height}, {_cells.Count} cells, bg={_bgId}");
     }
 
     public void RenderMap()

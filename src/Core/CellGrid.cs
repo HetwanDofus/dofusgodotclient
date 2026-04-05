@@ -59,12 +59,7 @@ public static class CellGrid
 	/// </summary>
 	public static int FindCellAtPosition(Vector2 worldPos, Godot.Collections.Array<Godot.Collections.Dictionary> cells, int mapWidth)
 	{
-		// Diamond corners relative to GetCellPosition (which returns top-left of cell):
-		// Left:   (0, CellHalfHeight)
-		// Top:    (CellHalfWidth, 0)
-		// Right:  (CellWidth, CellHalfHeight)
-		// Bottom: (CellHalfWidth, CellHeight)
-		// Center: (CellHalfWidth, CellHalfHeight)
+		// GetCellPosition returns the diamond center (matching PixiJS convention).
 		int result = -1;
 		foreach (var cellData in cells)
 		{
@@ -72,9 +67,8 @@ public static class CellGrid
 			int groundLevel = cellData.ContainsKey("groundLevel") ? cellData["groundLevel"].AsInt32() : 7;
 			var pos = GetCellPosition(cellId, mapWidth, groundLevel);
 
-			// Test against diamond centered at (pos.x + CellHalfWidth, pos.y + CellHalfHeight)
-			float dx = worldPos.X - (pos.X + CellHalfWidth);
-			float dy = worldPos.Y - (pos.Y + CellHalfHeight);
+			float dx = worldPos.X - pos.X;
+			float dy = worldPos.Y - pos.Y;
 			if (Mathf.Abs(dx / CellHalfWidth) + Mathf.Abs(dy / CellHalfHeight) <= 1f)
 				result = cellId;
 		}

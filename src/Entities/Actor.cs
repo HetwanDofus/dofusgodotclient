@@ -59,9 +59,7 @@ public class Actor
 
     public void SetWorldPosition(Vector2 pos)
     {
-        // pos = GetCellPosition = top-left of diamond.
-        // Place sprite at diamond center for correct cell alignment.
-        Sprite.Position = pos + new Vector2(Constants.CellHalfWidth, Constants.CellHalfHeight);
+        Sprite.Position = pos;
     }
 
     public void UpdateZIndex()
