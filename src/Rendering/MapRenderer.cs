@@ -112,6 +112,12 @@ public partial class MapRenderer : Node2D
                 ["layerObject2Flip"] = c.Obj2Flip,
             });
         }
+        // Log first few cells to verify data
+        for (int i = 0; i < System.Math.Min(3, _cells.Count); i++)
+        {
+            var c = _cells[i];
+            GD.Print($"[MapRenderer] cell[{i}] id={c["id"]} ground={c["ground"]} layer1={c["layer1"]} layer2={c["layer2"]} movement={c["movement"]}");
+        }
         GD.Print($"[MapRenderer] Map {mapData.MapId} (proto): {_mapWidth}x{mapData.Height}, {_cells.Count} cells, bg={_bgId}");
     }
 
@@ -135,6 +141,8 @@ public partial class MapRenderer : Node2D
             if (layer1 > 0) RegisterTile($"objects_{layer1}", groundTilesPath, objectTilesPath);
             if (layer2 > 0) RegisterTile($"objects_{layer2}", groundTilesPath, objectTilesPath);
         }
+
+        GD.Print($"[MapRenderer] Registered {_uniqueTiles.Count} unique tiles");
 
         // Resolve animation names (assets already loaded by RegisterTile → LoadTileAsset)
         foreach (var kv in _uniqueTiles)
