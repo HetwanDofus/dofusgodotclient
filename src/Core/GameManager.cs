@@ -186,6 +186,7 @@ public partial class GameManager : Node2D
 
     private void SpawnServerPlayer(int actorId, string name, int gfxId, string look, int cellId, int direction)
     {
+        Log($"[Spawn] actor={actorId} name={name} gfx={gfxId} cell={cellId} spritesPath={_spritesPath}");
         _vello.LoadSprite(gfxId, _spritesPath);
         var (_, colors) = ParseLook(look);
         int[] accInfo = ParseAccessories(look);
@@ -326,7 +327,7 @@ public partial class GameManager : Node2D
 
     private void ChangeMap(Proto.MapData mapData)
     {
-        GD.Print($"[MapChange] {MapId} → {mapData.MapId}");
+        Log($"[MapChange] {MapId} → {mapData.MapId} ({mapData.Cells.Count} cells)");
 
         // Fade transition
         StartFadeTransition();
@@ -342,7 +343,9 @@ public partial class GameManager : Node2D
         // Load from server proto data + render
         MapId = mapData.MapId;
         _mapRenderer.LoadMapFromProto(mapData);
+        Log("[MapChange] LoadMapFromProto done, calling RenderMap...");
         _mapRenderer.RenderMap();
+        Log($"[MapChange] RenderMap done, tiles={_mapRenderer.InteractiveTiles.Count}");
 
         // Rebuild pathfinding
         var walkableCells = GetWalkableCells();
