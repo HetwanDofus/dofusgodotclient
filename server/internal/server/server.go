@@ -2,6 +2,7 @@ package server
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"sync"
 
@@ -35,7 +36,12 @@ func New(world *game.World, addr string) *Server {
 
 func (s *Server) Start() error {
 	http.HandleFunc("/ws", s.handleWS)
-	return http.ListenAndServe(s.addr, nil)
+	ln, err := net.Listen("tcp4", s.addr)
+	if err != nil {
+		return err
+	}
+	log.Printf("[Server] Listening on tcp4 %s", s.addr)
+	return http.Serve(ln, nil)
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
