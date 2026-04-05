@@ -32,5 +32,5 @@ project/assembly_name="DofusRetroFuture"
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
+rendering_device/driver.windows="vulkan"
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)

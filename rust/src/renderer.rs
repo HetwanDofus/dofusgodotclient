@@ -44,7 +44,7 @@ impl DofusRenderer {
     #[func]
     fn init_gpu(&mut self) -> bool {
         let backends = if cfg!(target_os = "windows") {
-            wgpu::Backends::DX12 | wgpu::Backends::VULKAN
+            wgpu::Backends::VULKAN
         } else {
             wgpu::Backends::all()
         };
