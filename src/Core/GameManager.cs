@@ -431,11 +431,12 @@ public partial class GameManager : Node2D
 
     private void LoadClientConfig()
     {
-        // Try user:// first (next to exe on export), then res:// (editor)
+        // Try: next to exe (export), user://, res:// (editor)
         string? path = null;
-        foreach (var dir in new[] { "user://", "res://" })
+        var exeDir = OS.GetExecutablePath().GetBaseDir();
+        var candidates = new[] { exeDir + "/client.cfg", "user://client.cfg", "res://client.cfg" };
+        foreach (var p in candidates)
         {
-            var p = dir + "client.cfg";
             if (FileAccess.FileExists(p)) { path = p; break; }
         }
         if (path is null)
