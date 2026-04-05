@@ -1,0 +1,18 @@
+[package]
+name = "dofus-vello-godot"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
+dofasset-renderer = { path = "../../dofus-vello-custom-format/packages/renderer" }
+vello = "0.8"
+wgpu = { version = "28", features = ["metal", "vulkan"] }
+wgpu-hal = "28"
+pollster = "0.4"
+
+[target.'cfg(target_vendor = "apple")'.dependencies]
+metal = "0.33"

@@ -1,0 +1,161 @@
+syntax = "proto3";
+package dofus;
+
+option go_package = "dofus-server/internal/proto";
+option csharp_namespace = "DofusRetroFuture.Proto";
+
+// Envelope wrapping all messages
+message GameMessage {
+  oneof msg {
+    // Client -> Server
+    AuthLogin auth_login = 1;
+    CharacterSelect character_select = 2;
+    CharacterMove character_move = 3;
+    CharacterMoveEnd character_move_end = 4;
+    MapChangeRequest map_change_request = 5;
+    Ping ping = 6;
+
+    // Server -> Client
+    AuthSuccess auth_success = 10;
+    CharacterInfo character_info = 11;
+    MapData map_data = 20;
+    MapActors map_actors = 21;
+    ActorAdd actor_add = 30;
+    ActorRemove actor_remove = 31;
+    ActorMove actor_move = 32;
+    ActorUpdate actor_update = 33;
+    MapChangeResponse map_change_response = 40;
+    Pong pong = 41;
+  }
+}
+
+// --- Auth ---
+
+message AuthLogin {
+  string username = 1;
+  string password = 2;
+}
+
+message AuthSuccess {
+  repeated CharacterSummary characters = 1;
+}
+
+message CharacterSummary {
+  int32 id = 1;
+  string name = 2;
+  int32 gfx = 3;
+  int32 level = 4;
+  int32 map_id = 5;
+}
+
+message CharacterSelect {
+  int32 character_id = 1;
+}
+
+message CharacterInfo {
+  int32 id = 1;
+  string name = 2;
+  int32 gfx = 3;
+  int32 map_id = 4;
+  int32 cell_id = 5;
+  int32 direction = 6;
+  int32 color1 = 7;
+  int32 color2 = 8;
+  int32 color3 = 9;
+  string look = 10;
+}
+
+// --- Map ---
+
+message MapData {
+  int32 map_id = 1;
+  int32 width = 2;
+  int32 height = 3;
+  int32 background = 4;
+  repeated CellData cells = 5;
+}
+
+message CellData {
+  int32 id = 1;
+  bool active = 2;
+  int32 ground = 3;
+  int32 layer1 = 4;
+  int32 layer2 = 5;
+  int32 ground_level = 6;
+  bool walkable = 7;
+  int32 movement = 8;
+  bool line_of_sight = 9;
+  int32 ground_slope = 10;
+  int32 ground_rot = 11;
+  bool ground_flip = 12;
+  int32 obj1_rot = 13;
+  bool obj1_flip = 14;
+  int32 obj2_rot = 15;
+  bool obj2_flip = 16;
+}
+
+// --- Actors ---
+
+message MapActors {
+  repeated ActorInfo actors = 1;
+}
+
+message ActorInfo {
+  int32 id = 1;
+  int32 cell_id = 2;
+  int32 direction = 3;
+  string name = 4;
+  string look = 5;
+}
+
+message ActorAdd {
+  int32 id = 1;
+  int32 cell_id = 2;
+  int32 direction = 3;
+  string name = 4;
+  string look = 5;
+}
+
+message ActorRemove {
+  int32 id = 1;
+}
+
+message ActorMove {
+  int32 id = 1;
+  repeated int32 path = 2;
+}
+
+message ActorUpdate {
+  int32 id = 1;
+  string look = 2;
+}
+
+// --- Movement ---
+
+message CharacterMove {
+  repeated int32 path = 1;
+}
+
+message CharacterMoveEnd {
+}
+
+// --- Map Change ---
+
+message MapChangeRequest {
+  int32 target_map_id = 1;
+  int32 target_cell_id = 2;
+}
+
+message MapChangeResponse {
+  int32 map_id = 1;
+}
+
+// --- Ping ---
+
+message Ping {
+  int64 timestamp = 1;
+}
+
+message Pong {
+  int64 timestamp = 1;
+}
