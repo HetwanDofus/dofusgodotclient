@@ -451,7 +451,7 @@ public partial class GameManager : Node2D
         Log($"exe={OS.GetExecutablePath()}");
     }
 
-    private static void Log(string msg)
+    public static void Log(string msg)
     {
         var line = $"[{Time.GetTicksMsec():D8}] {msg}";
         GD.Print(line);

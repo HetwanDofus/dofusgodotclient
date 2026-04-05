@@ -64,17 +64,26 @@ jobs:
           Expand-Archive templates.tpz -DestinationPath templates_tmp
           Copy-Item templates_tmp\templates\* $dest -Recurse -Force
 
-      - name: Import project + build C#
+      - name: Import project
         shell: pwsh
         run: |
           & $env:GODOT --headless --import --quit 2>&1 | Out-Default
+          # Import may crash on first run due to GDExtension init — that's OK
+
+      - name: Build C#
+        shell: pwsh
+        run: |
           & $env:GODOT --headless --build-solutions --quit 2>&1 | Out-Default
+          # Verify DLL was built
+          $dll = ".godot\mono\temp\bin\Release\DofusRetroFuture.dll"
+          if (Test-Path $dll) { Write-Host "C# DLL built OK" } else { Write-Host "WARNING: C# DLL not found at $dll"; dotnet build -c Release }
 
       - name: Export Windows
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path build\windows | Out-Null
           & $env:GODOT --headless --export-release "Windows Desktop" build\windows\DofusRetroFuture.exe 2>&1 | Out-Default
+          if (-not (Test-Path "build\windows\DofusRetroFuture.exe")) { Write-Host "ERROR: Export failed"; exit 1 }
 
       - name: Verify export output
         shell: pwsh

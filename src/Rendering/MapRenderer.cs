@@ -82,7 +82,7 @@ public partial class MapRenderer : Node2D
         _cells = data["cells"].AsGodotArray<Dictionary>();
         _bgId = data.ContainsKey("background") ? data["background"].AsInt32() : 0;
 
-        GD.Print($"[MapRenderer] Map {mapId}: {_mapWidth}x{data["height"].AsInt32()}, {_cells.Count} cells, bg={_bgId}");
+        GameManager.Log($"[MapRenderer] Map {mapId}: {_mapWidth}x{data["height"].AsInt32()}, {_cells.Count} cells, bg={_bgId}");
     }
 
     public void LoadMapFromProto(MapData mapData)
@@ -116,17 +116,17 @@ public partial class MapRenderer : Node2D
         for (int i = 0; i < System.Math.Min(3, _cells.Count); i++)
         {
             var c = _cells[i];
-            GD.Print($"[MapRenderer] cell[{i}] id={c["id"]} ground={c["ground"]} layer1={c["layer1"]} layer2={c["layer2"]} movement={c["movement"]}");
+            GameManager.Log($"[MapRenderer] cell[{i}] id={c["id"]} ground={c["ground"]} layer1={c["layer1"]} layer2={c["layer2"]} movement={c["movement"]}");
         }
-        GD.Print($"[MapRenderer] Map {mapData.MapId} (proto): {_mapWidth}x{mapData.Height}, {_cells.Count} cells, bg={_bgId}");
+        GameManager.Log($"[MapRenderer] Map {mapData.MapId} (proto): {_mapWidth}x{mapData.Height}, {_cells.Count} cells, bg={_bgId}");
     }
 
     public void RenderMap()
     {
         var groundTilesPath = ProjectSettings.GlobalizePath("res://assets/tiles/ground/");
         var objectTilesPath = ProjectSettings.GlobalizePath("res://assets/tiles/objects/");
-        GD.Print($"[MapRenderer] RenderMap groundPath={groundTilesPath} objectPath={objectTilesPath}");
-        GD.Print($"[MapRenderer] groundPath exists={DirAccess.DirExistsAbsolute(groundTilesPath)} objectPath exists={DirAccess.DirExistsAbsolute(objectTilesPath)}");
+        GameManager.Log($"[MapRenderer] RenderMap groundPath={groundTilesPath} objectPath={objectTilesPath}");
+        GameManager.Log($"[MapRenderer] groundPath exists={DirAccess.DirExistsAbsolute(groundTilesPath)} objectPath exists={DirAccess.DirExistsAbsolute(objectTilesPath)}");
 
         // Collect unique tiles
         _uniqueTiles.Clear();
@@ -142,7 +142,7 @@ public partial class MapRenderer : Node2D
             if (layer2 > 0) RegisterTile($"objects_{layer2}", groundTilesPath, objectTilesPath);
         }
 
-        GD.Print($"[MapRenderer] Registered {_uniqueTiles.Count} unique tiles");
+        GameManager.Log($"[MapRenderer] Registered {_uniqueTiles.Count} unique tiles");
 
         // Resolve animation names (assets already loaded by RegisterTile → LoadTileAsset)
         foreach (var kv in _uniqueTiles)
@@ -191,7 +191,7 @@ public partial class MapRenderer : Node2D
         if (node is not null)
         {
             node.Visible = !node.Visible;
-            GD.Print($"[MapRenderer] {layer}: {(node.Visible ? "ON" : "OFF")}");
+            GameManager.Log($"[MapRenderer] {layer}: {(node.Visible ? "ON" : "OFF")}");
         }
     }
 
@@ -233,7 +233,7 @@ public partial class MapRenderer : Node2D
             tileCache[_tileKeys[i]] = hasTex ? result : null;
             if (hasTex) withTexture++;
         }
-        GD.Print($"[MapRenderer] Rendered {withTexture}/{_batchSpecs.Count} tiles in {Time.GetTicksMsec() - t0} ms (res={_tileResolution:F1})");
+        GameManager.Log($"[MapRenderer] Rendered {withTexture}/{_batchSpecs.Count} tiles in {Time.GetTicksMsec() - t0} ms (res={_tileResolution:F1})");
 
         // Background
         if (_bgId > 0)
@@ -338,12 +338,12 @@ public partial class MapRenderer : Node2D
         bool existsFs = System.IO.File.Exists(path);
         if (!existsGodot && !existsFs)
         {
-            GD.Print($"[MapRenderer] MISSING tile: {path} (godot={existsGodot} fs={existsFs})");
+            GameManager.Log($"[MapRenderer] MISSING tile: {path} (godot={existsGodot} fs={existsFs})");
             return;
         }
         if (!existsFs)
         {
-            GD.Print($"[MapRenderer] Tile in PCK but not on disk: {path} — Rust can't read it");
+            GameManager.Log($"[MapRenderer] Tile in PCK but not on disk: {path} — Rust can't read it");
             return;
         }
 
