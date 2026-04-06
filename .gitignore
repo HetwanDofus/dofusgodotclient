@@ -4,3 +4,18 @@
 
 # Rust build artifacts
 **/target/
+
+# Go build
+server/dofus-server
+server/dofus-server.exe
+
+# Build output
+build/
+
+# Logs
+*.log
+game.log
+
+# OS
+.DS_Store
+Thumbs.db

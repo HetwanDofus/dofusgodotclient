@@ -8,7 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
-dofasset-renderer = { path = "dofasset-renderer" }
+dofasset-renderer = { path = "dofasset-renderer/packages/renderer" }
 vello = "0.8"
 wgpu = { version = "28", features = ["metal", "vulkan", "dx12"] }
 wgpu-hal = { version = "28", features = ["dx12"] }

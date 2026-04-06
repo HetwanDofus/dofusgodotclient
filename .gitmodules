@@ -1,0 +1,3 @@
+[submodule "rust/dofasset-renderer"]
+	path = rust/dofasset-renderer
+	url = https://github.com/HetwanDofus/vello-dofasset-format.git

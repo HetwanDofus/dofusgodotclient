@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: dofus
+      POSTGRES_PASSWORD: dofus
+      POSTGRES_DB: dofus
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
